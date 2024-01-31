@@ -1,0 +1,6 @@
+body{
+    box-sizing: border-box;
+    width: 500px;
+    height: 300px;
+    max-height:300px !important;
+}

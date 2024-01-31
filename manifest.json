@@ -1,0 +1,33 @@
+{
+  "name": "POmPAL",
+  "description" : "Retrieve gas prices prom Petrol Ofisi Gas stations",
+  "version": "2024.0.1",
+  "manifest_version": 3,
+  "permissions": [],
+  "icons": {
+    "16": "./img/pompal-16.png",
+    "32": "./img/pompal-32.png",
+    "64": "./img/pompal-64.png",
+    "128": "./img/pompal-128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "./img/pompal-16.png",
+      "32": "./img/pompal-32.png",
+      "64": "./img/pompal-64.png",
+      "128": "./img/pompal-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.petrolofisi.com.tr/*",
+        "https://www.petrolofisi.com.tr/akaryakit-fiyatlari"
+      ],
+      "js": ["./js/content.js"],
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ]
+}
