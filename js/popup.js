@@ -163,7 +163,7 @@ let POmPAL = {
                 let countyName = event.target.dataset.county.split('_')[1];
                 let targetIndex = this.activeState.targetSelections.findIndex(item=> item.plateCode === plateCode && item.countyName === countyName);
                 this.activeState.targetSelections.splice(targetIndex, 1);
-                theBtn.parentNode.remove();
+                theBtn.parentNode.parentNode.remove();
                 this.getGasPrices();
             })
         })
