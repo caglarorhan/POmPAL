@@ -20,6 +20,8 @@ let POmPAL = {
         this.getLocations().then(r=>r);
         let tabsElm = document.querySelectorAll('.tabs');
         let tabsInstance = M.Tabs.init(tabsElm, {});
+        this.getGasPrices();
+        this.prepareCityDeSelection();
     },
     async getLocations(){
         let selectionPart = document.getElementById(this.locationsSelectionPartId);
@@ -91,6 +93,8 @@ let POmPAL = {
         let countySelect = selectionPart.querySelector(`#${this.locationSelectionCountySelectId}`);
         this.activeState.targetSelections.push({plateCode:citySelect.value, countyName:countySelect.value});
         this.saveTheState();
+        this.prepareCityDeSelection();
+        this.getGasPrices();
     },
     storageToState() {
         if (localStorage.getItem("activeState") && localStorage.getItem("activeState") !== 'null') {
@@ -106,12 +110,110 @@ let POmPAL = {
     autoSave() {
         setInterval(this.saveTheState.bind(this), this.autoSaveTime * 1000);
     },
-    async getGasPrices(){
-        let response = await fetch(this.poTargetCityPriceDataPageRootURL);
+    getGasPrices(){
+        let gasPrices =document.getElementById("selectedCountyPrices");
+        gasPrices.innerHTML=this.getTemplate["gasPriceInfoTemplate"]();
+
+        this.activeState.targetSelections.forEach((target, index)=>{
+            gasPrices.innerHTML+= this.getTemplate["progressBar"](`progressBar_${target.plateCode}`);
+            this.retrieveCityPriceData({plateCode:target.plateCode, countyName:target.countyName}).then(data=>{
+                let cityName = cities[`plate_`+target.plateCode].cityName;
+                gasPrices.querySelector(`#progressBar_${target.plateCode}`).remove();
+                gasPrices.innerHTML+= this.getTemplate['gasPriceInfoTemplate']({cityName: cityName, countyName:target.countyName,gasPriceData:data, priceUnitSign:'TL'})
+                this.activeState.targetSelections[index].data = data;
+            })
+
+        })
+
+    },
+    async retrieveCityPriceData(dataObj={plateCode:'01', countyName:'CEYHAN'}){
+        // TODO: SAdece PO ya gore hazirlandi diger sirketlerin sayfa yapisi incelenip onlara gore de uyarlanmali.
+        const params = new URLSearchParams();
+        params.append('cityId', dataObj.plateCode);
+        params.append('template', '1');
+        const fullUrl = this.poSearchPageURL + '?' + params.toString();
+        const options = {
+            method: 'POST'
+        };
+        let response = await fetch(fullUrl,options);
         let tempHTML = await response.text();
         let dP = new DOMParser();
         let doc = dP.parseFromString(tempHTML, "text/html");
-        let cities = [...doc.querySelectorAll('.table-prices tr td:first-child')].map((item)=>item.textContent);
+        let tableRows = [...doc.querySelectorAll('.table-prices tr')];
+        let tags = [...tableRows[0].querySelectorAll('th:not(:first-child)')].map(eachTh=>eachTh.textContent);
+        let targetCountyTr = tableRows.filter(countyTr=>{
+            //console.log(countyTr);
+            if(countyTr.querySelector('td:nth-of-type(1)') && countyTr.querySelector('td:nth-of-type(1)').textContent===dataObj.countyName) return true;
+        });
+        let gasPrices = [...targetCountyTr[0].querySelectorAll('td span:nth-of-type(1)')].map(eachTd=>eachTd.textContent);
+
+        return {tags:tags, prices:gasPrices, date:new Date().getTime()};
+    },
+    prepareCityDeSelection(){
+        let cityDeSelection = document.getElementById('cityDeSelection');
+        cityDeSelection.innerHTML='';
+        cityDeSelection.innerHTML+= this.getTemplate["cityDeSelection"]();
+        this.activeState.targetSelections.forEach(({plateCode,countyName})=>{
+            let cityName = cities["plate_"+plateCode].cityName;
+            cityDeSelection.innerHTML+= this.getTemplate["cityDeSelection"]({plateCode:plateCode, cityName:cityName, countyName:countyName})
+        })
+        cityDeSelection.querySelectorAll('.deselect-btn').forEach(theBtn=>{
+            theBtn.addEventListener('click',(event)=>{
+                let plateCode = event.target.dataset.county.split('_')[0];
+                let countyName = event.target.dataset.county.split('_')[1];
+                let targetIndex = this.activeState.targetSelections.findIndex(item=> item.plateCode === plateCode && item.countyName === countyName);
+                this.activeState.targetSelections.splice(targetIndex, 1);
+                theBtn.parentNode.remove();
+                this.getGasPrices();
+            })
+        })
+    },
+    getTemplate:{
+        "gasPriceInfoTemplate":(dataObj={cityName:'City Name', countyName:'County Name',gasPriceData:'Prices', priceUnitSign:'TL'})=>{
+            let allPrices = '<div class="allPrices">';
+            if(dataObj.gasPriceData!=='Prices'){
+                allPrices+=`<div class="tags">`;
+                dataObj.gasPriceData.tags.forEach(tag=>{
+                    allPrices+=`<div>${tag}</div>`;
+                })
+                allPrices+=`</div>`;
+                allPrices+=`<div class="prices-detail">`;
+                dataObj.gasPriceData.prices.forEach(price=>{
+                    allPrices+=`<div>${price}</div>`;
+                })
+                allPrices+=`</div>`;
+            }else{
+                allPrices+=`${dataObj.gasPriceData}</div>`;
+            }
+            return`
+                    <div class="gas-prices">
+                        <div class="city-name">${dataObj.cityName}</div>
+                        <div class="county-name">${dataObj.countyName}</div>
+                        <div class="prices">${allPrices}</div>
+                    </div>    
+                    `;
+        },
+        "progressBar" :(tempId)=>{
+            return `<div class="progress" id="${tempId}"><div class="indeterminate"></div></div>`
+        },
+        "cityDeSelection":(dataObj={plateCode:'Plate Code', cityName:'City', countyName:'County'})=>{
+            let tempResult = '';
+            if(dataObj.plateCode === 'Plate Code'){
+                tempResult =`<div class="deselect"><b>${dataObj.cityName}</b>  (${dataObj.plateCode})   ${dataObj.countyName}</div>`;
+            }else{
+                tempResult = `
+                <div class="deselect">
+                <div><b>${dataObj.cityName}</b></div>
+                <div>(${dataObj.plateCode})</div>
+                <div>${dataObj.countyName}</div>
+                <div><button class="deselect-btn waves-effect waves-light btn-small" data-county="${dataObj.plateCode}_${dataObj.countyName}">DeSelect</button></div>
+                
+                </div>
+            `;
+
+            }
+            return tempResult;
+        }
     }
 }
 

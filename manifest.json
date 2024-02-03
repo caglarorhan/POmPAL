@@ -1,6 +1,6 @@
 {
   "name": "POmPAL",
-  "description" : "Retrieve gas prices prom Petrol Ofisi Gas stations",
+  "description" : "Retrieve gas prices prom major gas stations from Turkey",
   "version": "2024.0.1",
   "manifest_version": 3,
   "permissions": [],
